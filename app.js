@@ -265,8 +265,10 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
         if (file && file.type.startsWith('image/')) handleImage(file);
     }
 
+    let _imgMediaType = 'image/jpeg';
     function handleImage(file) {
         if (!file) return;
+        _imgMediaType = file.type || 'image/jpeg';
         const reader = new FileReader();
         reader.onload = ev => {
             const dataUrl = ev.target.result;
@@ -316,7 +318,7 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
             'Content-Type': 'application/json',
             'x-api-key': key,
             'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-allow-browser': 'true'
+            'anthropic-dangerous-direct-browser-access': 'true'
         };
     }
     function checkApiKey() {
@@ -374,7 +376,7 @@ Rules:
                         role: 'user',
                         content: [
                             { type: 'image', source: { type: 'base64',
-                              media_type: 'image/jpeg', data: _imgBase64 }},
+                              media_type: _imgMediaType, data: _imgBase64 }},
                             { type: 'text', text: prompt }
                         ]
                     }]
@@ -806,7 +808,7 @@ async function ncExtract(){
   if(btn){btn.disabled=true;btn.style.opacity="0.5";}
   if(st){st.style.cssText="display:block;background:#1a2030;color:#7a9fd4;border:1px solid #1e2d4a;font-size:0.75rem;padding:0.4rem 0.75rem;border-radius:6px;margin-bottom:0.75rem;";st.innerHTML='<span style="display:inline-block;width:9px;height:9px;border:2px solid #3d5a8a;border-top-color:#4a8cf7;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span>Calling Claude API...';}
   try{
-    var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,system:'Return ONLY valid JSON no markdown: {"first_name":"","last_name":"","title":"","company":"","email":"","phone":"","linkedin_url":"","twitter":"","tags":[],"priority":"High|Medium|Low","notes_summary":""}',messages:[{role:"user",content:"LinkedIn URL: "+url.trim()}]})});
+    var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":getApiKey(),"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,system:'Return ONLY valid JSON no markdown: {"first_name":"","last_name":"","title":"","company":"","email":"","phone":"","linkedin_url":"","twitter":"","tags":[],"priority":"High|Medium|Low","notes_summary":""}',messages:[{role:"user",content:"LinkedIn URL: "+url.trim()}]})});
     var d=await r.json();if(d.error)throw new Error(d.error.message);
     var p=JSON.parse(((d.content||[]).find(function(b){return b.type==="text";})||{}).text.replace(/```json|```/g,"").trim());
     var s=function(id,v){var el=document.getElementById(id);if(el&&v)el.value=v;};
