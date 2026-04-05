@@ -41,6 +41,274 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
         notes:          (c.notes || []).map(n => n.text || '').filter(Boolean)
     }));
 
+    // ══════════════════════════════════════════════════════
+    //  PROJECTS — localStorage-backed
+    // ══════════════════════════════════════════════════════
+    function loadProjects() {
+        try { return JSON.parse(localStorage.getItem('cgs_projects') || '[]'); } catch(e) { return []; }
+    }
+    function saveProjects(arr) {
+        localStorage.setItem('cgs_projects', JSON.stringify(arr));
+    }
+    function nextProjectId(arr) {
+        return arr.reduce((m,p) => Math.max(m, p.id||0), 0) + 1;
+    }
+
+    function createProject(name, description, status) {
+        const arr = loadProjects();
+        const p = {
+            id: nextProjectId(arr),
+            name: name.trim(),
+            description: (description||'').trim(),
+            status: status || 'Active',
+            created: new Date().toISOString().slice(0,10),
+            contactIds: []
+        };
+        arr.push(p);
+        saveProjects(arr);
+        return p;
+    }
+
+    function getProject(id) {
+        return loadProjects().find(p => p.id === id);
+    }
+
+    function addContactToProject(projectId, contactId) {
+        const arr = loadProjects();
+        const p = arr.find(p => p.id === projectId);
+        if (!p) return;
+        if (!p.contactIds.includes(contactId)) p.contactIds.push(contactId);
+        saveProjects(arr);
+    }
+
+    function removeContactFromProject(projectId, contactId) {
+        const arr = loadProjects();
+        const p = arr.find(p => p.id === projectId);
+        if (!p) return;
+        p.contactIds = p.contactIds.filter(id => id !== contactId);
+        saveProjects(arr);
+    }
+
+    function deleteProject(projectId) {
+        const arr = loadProjects().filter(p => p.id !== projectId);
+        saveProjects(arr);
+    }
+
+    function escHtml(s) {
+        return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function showToast(msg) {
+        const t = document.createElement('div');
+        t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;border:1px solid #334155;color:#f1f5f9;padding:10px 20px;border-radius:8px;font-size:0.85rem;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.4);';
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2500);
+    }
+
+    function showAddToProjectMenu(contactId, btn) {
+        const existing = document.getElementById('atp-menu');
+        if (existing) { existing.remove(); return; }
+        const projects = loadProjects();
+        const menu = document.createElement('div');
+        menu.id = 'atp-menu';
+        menu.style.cssText = 'position:absolute;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px;z-index:3000;min-width:200px;box-shadow:0 8px 30px rgba(0,0,0,.5);';
+        if (!projects.length) {
+            menu.innerHTML = '<div style="color:#64748b;font-size:0.8rem;padding:6px 8px;">No projects yet — create one first.</div>';
+        } else {
+            menu.innerHTML = projects.map(p => `
+                <div onclick="addContactToProject(${p.id},${contactId});document.getElementById('atp-menu').remove();showToast('Added to '+${JSON.stringify(p.name)});"
+                     style="padding:8px 12px;border-radius:6px;cursor:pointer;font-size:0.85rem;color:#f1f5f9;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">${escHtml(p.name)}
+                     <span style="font-size:0.7rem;color:#64748b;margin-left:4px;">${p.contactIds.includes(contactId)?'✓':''}</span>
+                </div>`).join('');
+        }
+        document.body.appendChild(menu);
+        const rect = btn.getBoundingClientRect();
+        menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+        menu.style.left = (rect.left + window.scrollX) + 'px';
+        document.addEventListener('click', function close(e) {
+            if (!menu.contains(e.target) && e.target !== btn) { menu.remove(); document.removeEventListener('click', close); }
+        });
+    }
+
+    function openProjectsPanel() {
+        const existing = document.getElementById('projects-panel-overlay');
+        if (existing) { existing.remove(); return; }
+
+        const ov = document.createElement('div');
+        ov.id = 'projects-panel-overlay';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:2000;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;';
+        ov.innerHTML = buildProjectsPanelHTML();
+        document.body.appendChild(ov);
+        ov.addEventListener('click', e => { if(e.target===ov) closeProjectsPanel(); });
+    }
+
+    function closeProjectsPanel() {
+        const el = document.getElementById('projects-panel-overlay');
+        if (el) el.remove();
+    }
+
+    function buildProjectsPanelHTML() {
+        const projects = loadProjects();
+        const statusColor = { Active:'#22c55e', Pipeline:'#f59e0b', Closed:'#64748b' };
+
+        let rows = '';
+        if (!projects.length) {
+            rows = '<div style="color:#64748b;text-align:center;padding:40px 0;">No projects yet. Create one above.</div>';
+        } else {
+            projects.forEach(p => {
+                const col = statusColor[p.status] || '#64748b';
+                rows += `
+                <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:16px 20px;margin-bottom:10px;cursor:pointer;"
+                     onclick="openProjectDetail(${p.id})">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <strong style="font-size:0.95rem;color:#f1f5f9;">${escHtml(p.name)}</strong>
+                    <span style="font-size:0.7rem;padding:2px 8px;border-radius:10px;background:${col}22;color:${col};border:1px solid ${col}55;">${p.status}</span>
+                  </div>
+                  ${p.description ? `<div style="font-size:0.8rem;color:#64748b;margin-top:4px;">${escHtml(p.description)}</div>` : ''}
+                  <div style="font-size:0.75rem;color:#475569;margin-top:6px;">${p.contactIds.length} contact${p.contactIds.length!==1?'s':''} · Created ${p.created}</div>
+                </div>`;
+            });
+        }
+
+        return `
+        <div style="background:#1e293b;border:1px solid #334155;border-radius:14px;width:100%;max-width:680px;padding:32px;position:relative;color:#f1f5f9;font-family:'Segoe UI',sans-serif;">
+          <button onclick="closeProjectsPanel()" style="position:absolute;top:16px;right:18px;background:none;border:none;color:#64748b;font-size:1.3rem;cursor:pointer;">✕</button>
+          <h2 style="margin:0 0 4px;font-size:1.2rem;">Projects</h2>
+          <p style="margin:0 0 20px;font-size:0.8rem;color:#64748b;">Organise contacts into projects or campaigns.</p>
+
+          <!-- New project form -->
+          <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:16px;margin-bottom:20px;">
+            <div style="font-size:0.75rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;">New Project</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+              <input id="np-name" placeholder="Project name *" style="padding:9px 12px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#f1f5f9;font-size:0.85rem;outline:none;grid-column:1/-1;">
+              <input id="np-desc" placeholder="Description (optional)" style="padding:9px 12px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#f1f5f9;font-size:0.85rem;outline:none;grid-column:1/-1;">
+              <select id="np-status" style="padding:9px 12px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#f1f5f9;font-size:0.85rem;outline:none;">
+                <option value="Active">Active</option>
+                <option value="Pipeline">Pipeline</option>
+                <option value="Closed">Closed</option>
+              </select>
+              <button onclick="submitNewProject()" style="padding:9px 16px;border-radius:6px;border:none;background:#3b82f6;color:#fff;font-weight:600;font-size:0.85rem;cursor:pointer;">+ Create Project</button>
+            </div>
+          </div>
+
+          <!-- Project list -->
+          <div id="projects-list">${rows}</div>
+        </div>`;
+    }
+
+    function submitNewProject() {
+        const name = (document.getElementById('np-name').value||'').trim();
+        if (!name) { document.getElementById('np-name').style.borderColor='#ef4444'; return; }
+        const desc   = document.getElementById('np-desc').value || '';
+        const status = document.getElementById('np-status').value || 'Active';
+        createProject(name, desc, status);
+        // Refresh the panel
+        closeProjectsPanel();
+        openProjectsPanel();
+    }
+
+    function openProjectDetail(projectId) {
+        closeProjectsPanel();
+        const p = getProject(projectId);
+        if (!p) return;
+
+        const ov = document.createElement('div');
+        ov.id = 'project-detail-overlay';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:2000;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;';
+        ov.innerHTML = buildProjectDetailHTML(p);
+        document.body.appendChild(ov);
+        ov.addEventListener('click', e => { if(e.target===ov) closeProjectDetail(); });
+    }
+
+    function closeProjectDetail() {
+        const el = document.getElementById('project-detail-overlay');
+        if (el) el.remove();
+    }
+
+    function buildProjectDetailHTML(p) {
+        const statusColor = { Active:'#22c55e', Pipeline:'#f59e0b', Closed:'#64748b' };
+        const col = statusColor[p.status] || '#64748b';
+
+        const projectContacts = contacts.filter(c => p.contactIds.includes(c.id));
+
+        let rows = '';
+        if (!projectContacts.length) {
+            rows = '<div style="color:#64748b;text-align:center;padding:30px 0;">No contacts in this project. Use "Add Contacts" below.</div>';
+        } else {
+            projectContacts.forEach(c => {
+                rows += `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:6px;margin-bottom:6px;">
+                  <div style="cursor:pointer;" onclick="closeProjectDetail();view(${c.id});">
+                    <strong style="font-size:0.88rem;color:#f1f5f9;">${escHtml(c.person)}</strong>
+                    <span style="color:#64748b;font-size:0.78rem;margin-left:8px;">${escHtml(c.entity)}</span>
+                    ${c.position ? `<div style="font-size:0.75rem;color:#475569;">${escHtml(c.position)}</div>` : ''}
+                  </div>
+                  <button onclick="removeContactFromProject(${p.id},${c.id});refreshProjectDetail(${p.id});"
+                          style="background:none;border:1px solid #334155;border-radius:4px;color:#64748b;font-size:0.75rem;padding:3px 8px;cursor:pointer;">✕ Remove</button>
+                </div>`;
+            });
+        }
+
+        return `
+        <div style="background:#1e293b;border:1px solid #334155;border-radius:14px;width:100%;max-width:680px;padding:32px;position:relative;color:#f1f5f9;font-family:'Segoe UI',sans-serif;">
+          <button onclick="closeProjectDetail();openProjectsPanel();" style="position:absolute;top:16px;right:18px;background:none;border:none;color:#64748b;font-size:0.8rem;cursor:pointer;">← Back</button>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+            <h2 style="margin:0;font-size:1.2rem;">${escHtml(p.name)}</h2>
+            <span style="font-size:0.7rem;padding:2px 8px;border-radius:10px;background:${col}22;color:${col};border:1px solid ${col}55;">${p.status}</span>
+          </div>
+          ${p.description ? `<p style="margin:0 0 6px;font-size:0.8rem;color:#64748b;">${escHtml(p.description)}</p>` : ''}
+          <p style="margin:0 0 20px;font-size:0.75rem;color:#475569;">Created ${p.created} · ${p.contactIds.length} contact${p.contactIds.length!==1?'s':''}</p>
+
+          <!-- Add contacts search -->
+          <div style="margin-bottom:16px;">
+            <div style="font-size:0.75rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">Add Contacts</div>
+            <div style="display:flex;gap:8px;">
+              <input id="proj-search" placeholder="Search by name or company..." oninput="renderProjectContactPicker(${p.id})"
+                     style="flex:1;padding:9px 12px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f1f5f9;font-size:0.85rem;outline:none;">
+            </div>
+            <div id="proj-picker" style="max-height:180px;overflow-y:auto;margin-top:8px;"></div>
+          </div>
+
+          <hr style="border:0;border-top:1px solid #334155;margin:16px 0;">
+
+          <div style="font-size:0.75rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">Contacts in Project</div>
+          <div id="project-contact-list">${rows}</div>
+
+          <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;">
+            <button onclick="if(confirm('Delete project ${escHtml(p.name)}?')){deleteProject(${p.id});closeProjectDetail();openProjectsPanel();}"
+                    style="padding:8px 16px;border-radius:6px;border:1px solid #334155;background:none;color:#ef4444;font-size:0.82rem;cursor:pointer;">Delete Project</button>
+          </div>
+        </div>`;
+    }
+
+    function refreshProjectDetail(projectId) {
+        closeProjectDetail();
+        openProjectDetail(projectId);
+    }
+
+    function renderProjectContactPicker(projectId) {
+        const q = (document.getElementById('proj-search').value||'').toLowerCase().trim();
+        const p = getProject(projectId);
+        if (!p) return;
+        const picker = document.getElementById('proj-picker');
+        if (!q) { picker.innerHTML = ''; return; }
+        const matches = contacts.filter(c =>
+            !p.contactIds.includes(c.id) &&
+            (c.person.toLowerCase().includes(q) || c.entity.toLowerCase().includes(q))
+        ).slice(0,10);
+        if (!matches.length) {
+            picker.innerHTML = '<div style="color:#64748b;font-size:0.8rem;padding:8px;">No matches</div>';
+            return;
+        }
+        picker.innerHTML = matches.map(c => `
+            <div onclick="addContactToProject(${projectId},${c.id});refreshProjectDetail(${projectId});"
+                 style="padding:8px 12px;border-radius:6px;background:#0f172a;border:1px solid #334155;margin-bottom:4px;cursor:pointer;font-size:0.85rem;color:#f1f5f9;">
+              <strong>${escHtml(c.person)}</strong>
+              <span style="color:#64748b;font-size:0.78rem;margin-left:6px;">${escHtml(c.entity)}</span>
+            </div>`).join('');
+    }
+
     // ── State
     let currentData = contacts;
     let currentPage = 0;
@@ -194,6 +462,9 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
                     &nbsp;
                     <span style="background:#1e3a2f;color:#86efac;padding:3px 10px;
                                  border-radius:10px;font-size:0.72rem;">${c.priority}</span>
+                    <div style="margin-top:10px;">
+                        <button onclick="showAddToProjectMenu(${c.id}, this)" style="padding:6px 14px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#94a3b8;font-size:0.8rem;cursor:pointer;">📁 Add to Project</button>
+                    </div>
                 </div>
             </div>
 
