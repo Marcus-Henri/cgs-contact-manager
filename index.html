@@ -1,0 +1,386 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CGS Contact & Project Manager</title>
+    <style>
+        :root { --bg: #0f172a; --sidebar: #1e293b; --text: #f1f5f9; --accent: #3b82f6; --header: #111420; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { background: var(--header); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+        .logo-box { display: flex; align-items: center; gap: 12px; }
+        main { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 320px; background: var(--sidebar); border-right: 1px solid #334155; display: flex; flex-direction: column; }
+        .search-container { padding: 15px; border-bottom: 1px solid #334155; }
+        .search-bar { width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: white; box-sizing: border-box; outline: none; }
+        .contact-list { flex: 1; overflow-y: auto; }
+        .contact-item { padding: 15px; border-bottom: 1px solid #334155; cursor: pointer; transition: 0.1s; }
+        .contact-item:hover { background: #334155; }
+        .content { flex: 1; padding: 40px; overflow-y: auto; background: #0f172a; }
+        hr { border: 0; border-top: 1px solid #334155; margin: 20px 0; }
+    
+        /* ── Add Contact Modal ── */
+        .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);
+            z-index:1000;align-items:center;justify-content:center;}
+        .modal-overlay.open{display:flex;}
+        .modal{background:#1e293b;border:1px solid #334155;border-radius:12px;
+            width:min(680px,95vw);max-height:90vh;overflow-y:auto;padding:32px;
+            position:relative;box-shadow:0 25px 60px rgba(0,0,0,.6);}
+        .modal h2{margin:0 0 6px;font-size:1.25rem;color:#f1f5f9;}
+        .modal .sub{color:#64748b;font-size:0.82rem;margin:0 0 24px;}
+        .modal-close{position:absolute;top:16px;right:18px;background:none;border:none;
+            color:#64748b;font-size:1.4rem;cursor:pointer;line-height:1;}
+        .modal-close:hover{color:#f1f5f9;}
+        .drop-zone{border:2px dashed #334155;border-radius:8px;padding:28px;
+            text-align:center;cursor:pointer;transition:.2s;margin-bottom:20px;
+            background:#0f172a;}
+        .drop-zone:hover,.drop-zone.drag-over{border-color:#3b82f6;background:#1e3a5f;}
+        .drop-zone .dz-icon{font-size:2rem;margin-bottom:8px;}
+        .drop-zone p{margin:4px 0;color:#94a3b8;font-size:0.85rem;}
+        .url-row{display:flex;gap:8px;margin-bottom:20px;}
+        .url-row input{flex:1;padding:10px 14px;border-radius:6px;border:1px solid #334155;
+            background:#0f172a;color:#f1f5f9;font-size:0.88rem;outline:none;}
+        .url-row input:focus{border-color:#3b82f6;}
+        .btn-magic{padding:10px 18px;border-radius:6px;border:none;cursor:pointer;
+            background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;
+            font-size:0.85rem;font-weight:600;white-space:nowrap;transition:.15s;}
+        .btn-magic:hover{opacity:.85;}
+        .btn-magic:disabled{opacity:.45;cursor:not-allowed;}
+        .ai-status{font-size:0.8rem;color:#64748b;margin-bottom:16px;min-height:18px;}
+        .ai-status.loading{color:#f59e0b;}
+        .ai-status.ok{color:#22c55e;}
+        .ai-status.err{color:#ef4444;}
+        .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+        .form-grid .full{grid-column:1/-1;}
+        .field-group{display:flex;flex-direction:column;gap:4px;}
+        .field-group label{font-size:0.72rem;color:#64748b;text-transform:uppercase;
+            letter-spacing:.8px;}
+        .field-group input,.field-group textarea,.field-group select{
+            padding:9px 12px;border-radius:6px;border:1px solid #334155;
+            background:#0f172a;color:#f1f5f9;font-size:0.85rem;outline:none;
+            transition:.15s;}
+        .field-group input:focus,.field-group textarea:focus,
+        .field-group select:focus{border-color:#3b82f6;}
+        .field-group textarea{resize:vertical;min-height:90px;font-family:inherit;}
+        .field-populated{border-color:#22c55e !important;background:#0d2118 !important;}
+        .modal-actions{display:flex;gap:10px;margin-top:24px;justify-content:flex-end;}
+        .btn-save{padding:10px 24px;border-radius:6px;border:none;cursor:pointer;
+            background:#3b82f6;color:#fff;font-weight:600;font-size:0.88rem;}
+        .btn-save:hover{background:#2563eb;}
+        .btn-cancel{padding:10px 20px;border-radius:6px;border:1px solid #334155;
+            background:none;color:#94a3b8;cursor:pointer;font-size:0.88rem;}
+        .btn-cancel:hover{background:#334155;color:#f1f5f9;}
+        .preview-img{max-width:100%;border-radius:6px;margin-bottom:12px;
+            border:1px solid #334155;}
+        .section-divider{border:0;border-top:1px solid #334155;margin:20px 0;}
+        .confidence-bar{height:4px;background:#334155;border-radius:2px;margin-top:6px;}
+        .confidence-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#3b82f6,#22c55e);}
+
+        /* API Key banner */
+        .apikey-bar{background:#1e293b;border-bottom:1px solid #f59e0b44;
+            padding:8px 24px;display:flex;align-items:center;gap:12px;font-size:0.78rem;}
+        .apikey-bar label{color:#f59e0b;white-space:nowrap;font-weight:600;}
+        .apikey-bar input{flex:1;max-width:420px;padding:6px 10px;border-radius:5px;
+            border:1px solid #334155;background:#0f172a;color:#f1f5f9;
+            font-size:0.78rem;font-family:monospace;outline:none;}
+        .apikey-bar input:focus{border-color:#f59e0b;}
+        .apikey-bar input.saved{border-color:#22c55e;color:#86efac;}
+        .apikey-bar .key-hint{color:#64748b;font-size:0.72rem;}
+        .apikey-bar a{color:#3b82f6;text-decoration:none;font-size:0.72rem;}
+        .apikey-bar a:hover{text-decoration:underline;}
+
+        </style>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMTIgMTEyIj48cmVjdCB3aWR0aD0iMTEyIiBoZWlnaHQ9IjExMiIgcng9IjIwIiBmaWxsPSIjMTExNDIwIi8+PGNpcmNsZSBjeD0iMjgiIGN5PSIyOCIgcj0iNSIgZmlsbD0iIzRhOGNmNyIgb3BhY2l0eT0iMC45Ii8+PGNpcmNsZSBjeD0iODQiIGN5PSIyOCIgcj0iNCIgZmlsbD0iIzRhZGU4MCIgb3BhY2l0eT0iMC44Ii8+PGNpcmNsZSBjeD0iODQiIGN5PSI4NCIgcj0iNSIgZmlsbD0iIzRhOGNmNyIgb3BhY2l0eT0iMC42Ii8+PGNpcmNsZSBjeD0iMjgiIGN5PSI4NCIgcj0iMyIgZmlsbD0iIzRhOGNmNyIgb3BhY2l0eT0iMC41Ii8+PGxpbmUgeDE9IjMzIiB5MT0iMjgiIHgyPSI4MCIgeTI9IjI4IiBzdHJva2U9IiM0YThjZjciIHN0cm9rZS13aWR0aD0iMiIgb3BhY2l0eT0iMC40Ii8+PGxpbmUgeDE9Ijg0IiB5MT0iMzMiIHgyPSI4NCIgeTI9Ijc5IiBzdHJva2U9IiM0YThjZjciIHN0cm9rZS13aWR0aD0iMiIgb3BhY2l0eT0iMC4zIi8+PGxpbmUgeDE9IjMzIiB5MT0iMzMiIHgyPSI3OSIgeTI9Ijc5IiBzdHJva2U9IiM0YThjZjciIHN0cm9rZS13aWR0aD0iMS41IiBvcGFjaXR5PSIwLjIiLz48dGV4dCB4PSI1NiIgeT0iNjUiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjI4IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZThlOGU4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5DR1M8L3RleHQ+PGxpbmUgeDE9IjIyIiB5MT0iNzQiIHgyPSI5MCIgeTI9Ijc0IiBzdHJva2U9IiM0YThjZjciIHN0cm9rZS13aWR0aD0iMyIvPjwvc3ZnPg==">
+</head>
+<body>
+<!-- CGS PIN GATE --><div id="cgs-pin-gate" style="position:fixed;inset:0;background:#0d0f18;z-index:99999;display:flex;align-items:center;justify-content:center;font-family:-apple-system,sans-serif;"><div style="text-align:center;width:280px;"><div style="font-size:1.5rem;font-weight:700;color:#e8e8e8;margin-bottom:4px;">CGS</div><div style="font-size:0.7rem;color:#444;margin-bottom:2rem;letter-spacing:0.1em;text-transform:uppercase;">Contact Manager</div><div id="cgspd" style="display:flex;gap:12px;justify-content:center;margin-bottom:1.5rem;"><div class="pd" style="width:12px;height:12px;border-radius:50%;border:1.5px solid #2d3144;transition:all 0.15s;"></div><div class="pd" style="width:12px;height:12px;border-radius:50%;border:1.5px solid #2d3144;transition:all 0.15s;"></div><div class="pd" style="width:12px;height:12px;border-radius:50%;border:1.5px solid #2d3144;transition:all 0.15s;"></div><div class="pd" style="width:12px;height:12px;border-radius:50%;border:1.5px solid #2d3144;transition:all 0.15s;"></div></div><div style="display:grid;grid-template-columns:repeat(3,72px);gap:8px;justify-content:center;"><button onclick="cgsPin(1)" style="height:60px;background:#16181f;border:1px solid #252830;border-radius:10px;color:#e8e8e8;font-size:1.15rem;cursor:pointer;">1</button><button onclick="cgsPin(2)" style="height:60px;background:#16181f;border:1px solid #252830;border-radius:10px;color:#e8e8e8;font-size:1.15rem;cursor:pointer;">2</button><button onclick="cgsPin(3)" style="height:60px;background:#16181f;border:1px solid #252830;border-radius:10px;color:#e8e8e8;font-size:1.15rem;cursor:pointer;">3</button><button onclick="cgsPin(4)" style="height:60px;background:#16181f;border:1px solid #252830;border-radius:10px;color:#e8e8e8;font-size:1.15rem;cursor:pointer;">4</button><button onclick="cgsPin(5)" style="height:60px;background:#16181f;border:1px solid #252830;border-radius:10px;color:#e8e8e8;font-size:1.15rem;cursor:pointer;">5</button><button onclick="cgsPin(6)" style="height:60px;background:#16181f;border:1px solid #252830;border-radius:10px;color:#e8e8e8;font-size:1.15rem;cursor:pointer;">6</button><button onclick="cgsPin(7)" style="height:60px;background:#16181f;border:1px solid #252830;border-radius:10px;color:#e8e8e8;font-size:1.15rem;cursor:pointer;">7</button><button onclick="cgsPin(8)" style="height:60px;background:#16181f;border:1px solid #252830;border-radius:10px;color:#e8e8e8;font-size:1.15rem;cursor:pointer;">8</button><button onclick="cgsPin(9)" style="height:60px;background:#16181f;border:1px solid #252830;border-radius:10px;color:#e8e8e8;font-size:1.15rem;cursor:pointer;">9</button><button onclick="cgsPin(-1)" style="height:60px;background:transparent;border:none;color:#555;font-size:1.2rem;cursor:pointer;">&#9003;</button><button onclick="cgsPin(0)" style="height:60px;background:#16181f;border:1px solid #252830;border-radius:10px;color:#e8e8e8;font-size:1.15rem;cursor:pointer;">0</button><div></div></div><div id="cgs-pin-err" style="display:none;color:#f87171;font-size:0.72rem;margin-top:1rem;">Incorrect PIN.</div></div></div><script>(function(){var C="8487",e="",L=C.length,dots=document.querySelectorAll(".pd");function upd(col){dots.forEach(function(d,i){var f=i<e.length;d.style.background=f?(col||"#4a8cf7"):"transparent";d.style.borderColor=f?(col||"#4a8cf7"):"#2d3144";});}if(sessionStorage.getItem("cgs_auth")==="1"){document.getElementById("cgs-pin-gate").style.display="none";return;}document.addEventListener("keydown",function(ev){var g=document.getElementById("cgs-pin-gate");if(!g||g.style.display==="none")return;if(ev.key>="0"&&ev.key<="9")cgsPin(Number(ev.key));else if(ev.key==="Backspace")cgsPin(-1);});window.cgsPin=function(k){var g=document.getElementById("cgs-pin-gate");if(!g||g.style.display==="none")return;var er=document.getElementById("cgs-pin-err");if(k===-1){e=e.slice(0,-1);upd();er.style.display="none";return;}if(e.length>=L)return;e+=String(k);upd();er.style.display="none";if(e.length===L){if(e===C){sessionStorage.setItem("cgs_auth","1");g.style.transition="opacity 0.3s";g.style.opacity="0";setTimeout(function(){g.style.display="none";},300);}else{upd("#f87171");er.style.display="block";setTimeout(function(){e="";upd();er.style.display="none";},900);}}};}());</script><!-- END PIN GATE -->
+
+<header>
+    <div class="logo-box">
+        <svg width="56" height="56" viewBox="0 0 112 112"><rect width="112" height="112" rx="20" fill="#111420"/><text x="56" y="68" font-family="Arial" font-size="42" font-weight="700" fill="#4a8cf7" text-anchor="middle">CGS</text></svg>
+        <div><strong>CGS Contact & Project Manager</strong><br><small style="color:#64748b">Connect Global Solutions</small></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;">
+        <span id="stats" style="color:#94a3b8;font-size:0.8rem;">11,495 contacts</span>
+        <button onclick="openAddModal()"
+            style="padding:8px 16px;border-radius:6px;border:none;cursor:pointer;
+                   background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;
+                   font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:6px;">
+            <span style="font-size:1rem;">+</span> Add Contact
+        </button>
+        <button onclick="exportJSON()"
+            style="padding:8px 16px;border-radius:6px;border:1px solid #334155;cursor:pointer;
+                   background:#1e293b;color:#94a3b8;
+                   font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:6px;"
+            title="Export full dataset as JSON — re-embed to persist new contacts">
+            ⬇ Export JSON
+        </button>
+    </div>
+</header>
+
+<!-- API Key Bar -->
+<div class="apikey-bar" id="apikeyBar" style="display:none;">
+    <label>🔑 Anthropic API Key</label>
+    <input type="password" id="apiKeyInput"
+           placeholder="sk-ant-api03-..."
+           oninput="saveApiKey(this.value)"
+           title="Required for AI extraction. Stored locally in your browser only.">
+    <span class="key-hint">
+        Stored in browser only &nbsp;·&nbsp;
+        <a href="https://console.anthropic.com/settings/keys" target="_blank">Get a key →</a>
+        &nbsp;·&nbsp;
+        <a href="#" onclick="toggleKeyVisible();return false;" id="keyToggle">Show</a>
+    </span>
+    <span id="keyStatus" style="color:#64748b;font-size:0.72rem;white-space:nowrap;"></span>
+</div>
+
+<main>
+    <div class="sidebar">
+        <div class="search-container"><input type="text" id="search" class="search-bar" placeholder="Search contacts..." oninput="filter()"></div>
+        <div class="contact-list" id="list"></div>
+    </div>
+    <div class="content" id="detail">
+        <div style="text-align:center; margin-top:150px; color:#334155;"><p>Select a contact to view intelligence</p></div>
+    </div>
+</main>
+
+    <script src="data.js"></script>
+    <script src="app.js" defer></script>
+
+<!-- ════════════════════════════════════════════════════════
+     ADD CONTACT MODAL
+     ════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeAddModal()">✕</button>
+    <h2>✦ Add New Contact</h2>
+
+    <!-- Mode tabs -->
+    <div style="display:flex;gap:0;margin-bottom:20px;border:1px solid #334155;border-radius:8px;overflow:hidden;">
+        <button id="tab-json" onclick="switchTab('json')"
+            style="flex:1;padding:10px;border:none;cursor:pointer;font-size:0.82rem;font-weight:600;
+                   background:#3b82f6;color:#fff;transition:.15s;">
+            📋 Paste JSON from Claude
+        </button>
+        <button id="tab-manual" onclick="switchTab('manual')"
+            style="flex:1;padding:10px;border:none;cursor:pointer;font-size:0.82rem;font-weight:600;
+                   background:#1e293b;color:#64748b;transition:.15s;">
+            ✏️ Manual Entry
+        </button>
+        <button id="tab-ai" onclick="switchTab('ai')"
+            style="flex:1;padding:10px;border:none;cursor:pointer;font-size:0.82rem;font-weight:600;
+                   background:#1e293b;color:#64748b;transition:.15s;">
+            ⚡ AI Extract (API)
+        </button>
+    </div>
+
+    <!-- TAB: JSON PASTE (DEFAULT - works right now) -->
+    <div id="panel-json">
+        <div style="background:#0f172a;border:1px solid #22c55e33;border-radius:8px;padding:16px;margin-bottom:16px;">
+            <div style="color:#22c55e;font-size:0.8rem;font-weight:600;margin-bottom:8px;">
+                ✓ WORKS NOW — No API key needed
+            </div>
+            <div style="color:#94a3b8;font-size:0.82rem;line-height:1.7;">
+                1. Open <a href="https://claude.ai" target="_blank" style="color:#3b82f6;">claude.ai</a>
+                in a new tab<br>
+                2. Drop your LinkedIn screenshot there and send this prompt:<br>
+            </div>
+            <div style="background:#1e293b;border-left:3px solid #3b82f6;border-radius:4px;
+                        padding:10px 14px;margin:10px 0;position:relative;">
+                <div style="font-family:monospace;font-size:0.75rem;color:#cbd5e1;line-height:1.6;
+                            white-space:pre-wrap;" id="promptText">Extract this LinkedIn profile and return ONLY valid JSON with these fields:
+{"first_name":"","last_name":"","company":"","position":"","linkedin_url":"","about":"","email":"","phone":"","twitter":"","website1":"","sector_tags":[],"seniority":""}</div>
+                <button onclick="copyPrompt()"
+                    style="position:absolute;top:8px;right:8px;background:#334155;border:none;
+                           color:#94a3b8;padding:4px 10px;border-radius:4px;cursor:pointer;
+                           font-size:0.72rem;" id="copyBtn">Copy</button>
+            </div>
+            <div style="color:#94a3b8;font-size:0.82rem;">
+                3. Copy Claude's JSON response<br>
+                4. Paste it in the box below and hit <strong style="color:#f1f5f9;">Import</strong>
+            </div>
+        </div>
+
+        <textarea id="jsonPasteArea"
+            placeholder='Paste Claude's JSON response here...
+{"first_name":"John","last_name":"Smith","company":"Acme","position":"CEO",...}'
+            style="width:100%;min-height:140px;padding:12px;border-radius:6px;
+                   border:1px solid #334155;background:#0f172a;color:#f1f5f9;
+                   font-family:monospace;font-size:0.78rem;box-sizing:border-box;
+                   outline:none;resize:vertical;"
+            oninput="validateJsonPaste(this.value)"></textarea>
+        <div id="jsonStatus" style="font-size:0.75rem;margin-top:6px;min-height:16px;"></div>
+
+        <button onclick="importFromJson()"
+            style="margin-top:12px;width:100%;padding:12px;border-radius:6px;border:none;
+                   cursor:pointer;background:linear-gradient(135deg,#22c55e,#16a34a);
+                   color:#fff;font-size:0.9rem;font-weight:700;">
+            ⬇ Import Contact from JSON
+        </button>
+    </div>
+
+    <!-- TAB: MANUAL -->
+    <div id="panel-manual" style="display:none;">
+        <p style="color:#64748b;font-size:0.82rem;margin:0 0 16px;">Fill in what you know — all fields optional except name.</p>
+    </div>
+
+    <!-- TAB: AI EXTRACT -->
+    <div id="panel-ai" style="display:none;">
+        <div style="background:#1e293b;border:1px solid #f59e0b44;border-radius:8px;padding:16px;margin-bottom:16px;">
+            <div style="color:#f59e0b;font-size:0.8rem;font-weight:600;margin-bottom:6px;">⚠ Requires Anthropic API credit</div>
+            <div style="color:#94a3b8;font-size:0.82rem;">Drop screenshot or paste URL below. Needs API key set in the bar above and credit loaded at console.anthropic.com/billing</div>
+        </div>
+
+        <!-- Screenshot drop zone -->
+        <div class="drop-zone" id="dropZone"
+         onclick="document.getElementById('imgInput').click()"
+         ondragover="dzDrag(event,true)" ondragleave="dzDrag(event,false)"
+         ondrop="dzDrop(event)">
+      <div class="dz-icon">📸</div>
+      <p><strong style="color:#e2e8f0;">Drop LinkedIn screenshot here</strong></p>
+      <p>or click to browse — PNG, JPG, WEBP accepted</p>
+      <input type="file" id="imgInput" accept="image/*" style="display:none"
+             onchange="handleImage(this.files[0])">
+    </div>
+    <div id="imgPreviewWrap" style="display:none;">
+      <img id="imgPreview" class="preview-img" src="" alt="Preview">
+      <button onclick="clearImage()"
+              style="font-size:0.75rem;color:#ef4444;background:none;border:none;
+                     cursor:pointer;margin-bottom:12px;">✕ Remove image</button>
+    </div>
+
+    <!-- URL row -->
+    <div class="url-row">
+      <input type="text" id="liUrl" placeholder="https://linkedin.com/in/username  ← paste URL then hit Extract →">
+      <button class="btn-magic" id="extractBtn" onclick="extractFromUrl()">⚡ Extract</button>
+    </div>
+
+    <!-- Status line -->
+    <div class="ai-status" id="aiStatus"></div>
+
+    </div><!-- /panel-ai -->
+
+    <!-- SHARED FORM shown after any import -->
+    <div id="sharedForm" style="display:none;">
+    <hr style="border:0;border-top:1px solid #334155;margin:16px 0;">
+    <div style="color:#22c55e;font-size:0.82rem;font-weight:600;margin-bottom:14px;
+                padding:8px 12px;background:#0d2118;border-radius:6px;border:1px solid #22c55e44;"
+         id="formReadyMsg"></div>
+    <!-- Populated form -->
+    <div class="form-grid">
+      <div class="field-group">
+        <label>First Name</label>
+        <input type="text" id="f_first_name" placeholder="First">
+      </div>
+      <div class="field-group">
+        <label>Last Name</label>
+        <input type="text" id="f_last_name" placeholder="Last">
+      </div>
+      <div class="field-group full">
+        <label>Company / Organisation</label>
+        <input type="text" id="f_company" placeholder="Company">
+      </div>
+      <div class="field-group full">
+        <label>Position / Title</label>
+        <input type="text" id="f_position" placeholder="Job title">
+      </div>
+      <div class="field-group full">
+        <label>LinkedIn URL</label>
+        <input type="text" id="f_linkedin_url" placeholder="https://linkedin.com/in/...">
+      </div>
+      <div class="field-group full">
+        <label>About (LinkedIn Bio)</label>
+        <textarea id="f_about" placeholder="LinkedIn About section will appear here..."></textarea>
+      </div>
+      <div class="field-group">
+        <label>Email</label>
+        <input type="text" id="f_email" placeholder="email@domain.com">
+      </div>
+      <div class="field-group">
+        <label>Phone</label>
+        <input type="text" id="f_phone" placeholder="+1 234 567 8900">
+      </div>
+      <div class="field-group">
+        <label>WhatsApp</label>
+        <input type="text" id="f_whatsapp" placeholder="+1 234 567 8900">
+      </div>
+      <div class="field-group">
+        <label>Telegram</label>
+        <input type="text" id="f_telegram" placeholder="@handle">
+      </div>
+      <div class="field-group">
+        <label>Twitter / X</label>
+        <input type="text" id="f_twitter" placeholder="@handle">
+      </div>
+      <div class="field-group">
+        <label>Website</label>
+        <input type="text" id="f_website1" placeholder="https://...">
+      </div>
+
+      <hr class="section-divider full">
+
+      <div class="field-group">
+        <label>Sector Tags</label>
+        <input type="text" id="f_sector_tags" placeholder="DeFi, Web3, AI  (comma separated)">
+      </div>
+      <div class="field-group">
+        <label>Seniority</label>
+        <select id="f_seniority">
+          <option value="">— select —</option>
+          <option>C-Suite/SVP</option>
+          <option>Senior Executive/Founder</option>
+          <option>Manager/Senior</option>
+          <option>Individual Contributor</option>
+          <option>Student/Entry</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Relevance Score (0–12)</label>
+        <input type="number" id="f_relevance_score" min="0" max="12" placeholder="0">
+      </div>
+      <div class="field-group">
+        <label>Priority</label>
+        <select id="f_priority">
+          <option value="">— select —</option>
+          <option>High</option>
+          <option>Medium</option>
+          <option>Low</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Status</label>
+        <select id="f_status">
+          <option value="Not contacted">Not contacted</option>
+          <option value="Contacted">Contacted</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Connected On</label>
+        <input type="date" id="f_connected_on">
+      </div>
+
+      <div class="field-group full">
+        <label>Notes / First Impression</label>
+        <textarea id="f_notes" placeholder="Add any initial notes..."></textarea>
+      </div>
+    </div>
+
+    <!-- Confidence bar (shown after AI extraction) -->
+    <div id="confidenceWrap" style="display:none;margin-top:16px;">
+      <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#64748b;">
+        <span>AI Extraction Confidence</span><span id="confidencePct">—</span>
+      </div>
+      <div class="confidence-bar"><div class="confidence-fill" id="confidenceFill" style="width:0%"></div></div>
+    </div>
+
+    </div><!-- /sharedForm -->
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeAddModal()">Cancel</button>
+      <button class="btn-save"   onclick="saveNewContact()" id="saveBtn" style="display:none;">💾 Save Contact</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
