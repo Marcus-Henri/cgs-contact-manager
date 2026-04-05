@@ -729,7 +729,7 @@ Set confidence low (10-25) since you only have the URL. Infer name from the slug
         try {
             d = JSON.parse(raw.replace(/```json|```/g,'').trim());
         } catch(e) {
-            document.getElementById('jsonStatus').textContent = '✗ Cannot parse — paste Claude's exact JSON output.';
+            document.getElementById('jsonStatus').textContent = "✗ Cannot parse — paste Claude's exact JSON output.";
             document.getElementById('jsonStatus').style.color = '#ef4444';
             return;
         }
