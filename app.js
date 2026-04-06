@@ -64,6 +64,37 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
     loadNewContacts().forEach(c => contacts.unshift(c));
 
     // ══════════════════════════════════════════════════════
+    //  CONTACT EDITS — localStorage delta for existing contacts
+    //  Stored in cgs_contact_edits as { [id]: {field overrides} }
+    //  Applies on top of INITIAL_DATA on every load.
+    // ══════════════════════════════════════════════════════
+    function loadContactEdits() {
+        try { return JSON.parse(localStorage.getItem('cgs_contact_edits') || '{}'); } catch(e) { return {}; }
+    }
+    function saveContactEdit(id, fields) {
+        // If it's a new contact, update cgs_new_contacts directly
+        const newArr = loadNewContacts();
+        const ncIdx = newArr.findIndex(c => c.id === id);
+        if (ncIdx >= 0) {
+            Object.assign(newArr[ncIdx], fields);
+            localStorage.setItem('cgs_new_contacts', JSON.stringify(newArr));
+        } else {
+            // Store delta for INITIAL_DATA contacts
+            const edits = loadContactEdits();
+            edits[id] = Object.assign(edits[id] || {}, fields);
+            localStorage.setItem('cgs_contact_edits', JSON.stringify(edits));
+        }
+        // Apply to in-memory array immediately
+        const c = contacts.find(x => x.id === id);
+        if (c) Object.assign(c, fields);
+    }
+    // Apply saved edits over in-memory contacts on load
+    (function() {
+        const edits = loadContactEdits();
+        contacts.forEach(c => { if (edits[c.id]) Object.assign(c, edits[c.id]); });
+    })();
+
+    // ══════════════════════════════════════════════════════
     //  PROJECTS — localStorage-backed
     // ══════════════════════════════════════════════════════
     function loadProjects() {
@@ -259,15 +290,25 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
             rows = '<div style="color:#64748b;text-align:center;padding:30px 0;">No contacts in this project. Use "Add Contacts" below.</div>';
         } else {
             projectContacts.forEach(c => {
+                const contactLinks = [
+                    c.email    ? `<a href="mailto:${escHtml(c.email)}" onclick="event.stopPropagation()" style="font-size:0.72rem;color:#3b82f6;text-decoration:none;">✉ ${escHtml(c.email)}</a>` : '',
+                    c.linkedin ? `<a href="${escHtml(c.linkedin)}" target="_blank" onclick="event.stopPropagation()" style="font-size:0.72rem;color:#60a5fa;text-decoration:none;">in LinkedIn</a>` : '',
+                    c.phone    ? `<span style="font-size:0.72rem;color:#64748b;">📞 ${escHtml(c.phone)}</span>` : '',
+                    c.whatsapp ? `<span style="font-size:0.72rem;color:#64748b;">💬 ${escHtml(c.whatsapp)}</span>` : '',
+                ].filter(Boolean).join('<span style="color:#334155;margin:0 4px;">·</span>');
+
                 rows += `
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:6px;margin-bottom:6px;">
-                  <div style="cursor:pointer;" onclick="closeProjectDetail();view(${c.id});">
-                    <strong style="font-size:0.88rem;color:#f1f5f9;">${escHtml(c.person)}</strong>
-                    <span style="color:#64748b;font-size:0.78rem;margin-left:8px;">${escHtml(c.entity)}</span>
-                    ${c.position ? `<div style="font-size:0.75rem;color:#475569;">${escHtml(c.position)}</div>` : ''}
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#0f172a;border:1px solid #334155;border-radius:6px;margin-bottom:6px;gap:10px;">
+                  <div style="flex:1;min-width:0;cursor:pointer;" onclick="closeProjectDetail();view(${c.id});">
+                    <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+                      <strong style="font-size:0.9rem;color:#f1f5f9;">${escHtml(c.person)}</strong>
+                      <span style="color:#64748b;font-size:0.78rem;">${escHtml(c.entity)}</span>
+                    </div>
+                    ${c.position ? `<div style="font-size:0.75rem;color:#94a3b8;margin-top:2px;">${escHtml(c.position)}</div>` : ''}
+                    ${contactLinks ? `<div style="margin-top:5px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;">${contactLinks}</div>` : ''}
                   </div>
                   <button onclick="removeContactFromProject(${p.id},${c.id});refreshProjectDetail(${p.id});"
-                          style="background:none;border:1px solid #334155;border-radius:4px;color:#64748b;font-size:0.75rem;padding:3px 8px;cursor:pointer;">✕ Remove</button>
+                          style="background:none;border:1px solid #334155;border-radius:4px;color:#64748b;font-size:0.72rem;padding:3px 8px;cursor:pointer;flex-shrink:0;">✕</button>
                 </div>`;
             });
         }
@@ -297,8 +338,12 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
           <div style="font-size:0.75rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">Contacts in Project</div>
           <div id="project-contact-list">${rows}</div>
 
-          <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;">
-            <button onclick="if(confirm('Delete project ${escHtml(p.name)}?')){deleteProject(${p.id});closeProjectDetail();openProjectsPanel();}"
+          <div style="margin-top:20px;display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;">
+            <button onclick="exportProjectToCSV(${p.id})"
+                    style="padding:8px 18px;border-radius:6px;border:1px solid #22c55e;background:#0f172a;color:#22c55e;font-size:0.82rem;cursor:pointer;font-weight:600;">
+                📊 Export to Google Sheets (CSV)
+            </button>
+            <button onclick="if(confirm('Delete project?')){deleteProject(${p.id});closeProjectDetail();openProjectsPanel();}"
                     style="padding:8px 16px;border-radius:6px;border:1px solid #334155;background:none;color:#ef4444;font-size:0.82rem;cursor:pointer;">Delete Project</button>
           </div>
         </div>`;
@@ -329,6 +374,110 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
               <strong>${escHtml(c.person)}</strong>
               <span style="color:#64748b;font-size:0.78rem;margin-left:6px;">${escHtml(c.entity)}</span>
             </div>`).join('');
+    }
+
+    function exportProjectToCSV(projectId) {
+        const p = getProject(projectId);
+        if (!p) return;
+        const projectContacts = contacts.filter(c => p.contactIds.includes(c.id));
+        const headers = ['Name','Company','Position','Email','Phone','WhatsApp','Telegram','LinkedIn','Twitter','Website','Sector Tags','Seniority','About','Notes'];
+        const escape = v => '"' + String(v||'').replace(/"/g,'""') + '"';
+        const rows = projectContacts.map(c => [
+            c.person, c.entity, c.position, c.email, c.phone,
+            c.whatsapp, c.telegram, c.linkedin, c.twitter, c.website1,
+            c.sector_tags, c.seniority, c.about, (c.notes||[]).join(' | ')
+        ].map(escape).join(','));
+        const csv = [headers.map(escape).join(','), ...rows].join('\r\n');
+        const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = p.name.replace(/[^a-z0-9]/gi,'_').toLowerCase() + '_contacts.csv';
+        a.click();
+        showToast('CSV downloaded — open Google Sheets → File → Import to load it');
+    }
+
+    // ── Edit Contact Modal
+    function _editField(label, id, value, gridCol) {
+        return `<div style="${gridCol?'grid-column:'+gridCol+';':''}">
+          <label style="font-size:0.73rem;color:#64748b;display:block;margin-bottom:4px;">${label}</label>
+          <input id="${id}" value="${escHtml(value||'')}" style="width:100%;padding:8px 11px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f1f5f9;font-size:0.84rem;outline:none;box-sizing:border-box;">
+        </div>`;
+    }
+
+    function openEditModal(id) {
+        const c = contacts.find(x => x.id === id);
+        if (!c) return;
+        const existing = document.getElementById('edit-contact-overlay');
+        if (existing) existing.remove();
+
+        const nameParts = c.person.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName  = nameParts.slice(1).join(' ') || '';
+
+        const ov = document.createElement('div');
+        ov.id = 'edit-contact-overlay';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3500;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;';
+        ov.innerHTML = `
+        <div style="background:#1e293b;border:1px solid #334155;border-radius:14px;width:100%;max-width:640px;padding:32px;position:relative;color:#f1f5f9;font-family:'Segoe UI',sans-serif;">
+          <button onclick="document.getElementById('edit-contact-overlay').remove()" style="position:absolute;top:16px;right:18px;background:none;border:none;color:#64748b;font-size:1.3rem;cursor:pointer;">✕</button>
+          <h2 style="margin:0 0 6px;font-size:1.1rem;">✏️ Edit Contact</h2>
+          <p style="margin:0 0 20px;font-size:0.8rem;color:#64748b;">${escHtml(c.person)} — changes are saved locally and survive page reload.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            ${_editField('First Name','ec_fn',firstName)}
+            ${_editField('Last Name','ec_ln',lastName)}
+            ${_editField('Company','ec_entity',c.entity,'1/-1')}
+            ${_editField('Position / Title','ec_position',c.position,'1/-1')}
+            ${_editField('Email','ec_email',c.email)}
+            ${_editField('Phone','ec_phone',c.phone)}
+            ${_editField('WhatsApp','ec_whatsapp',c.whatsapp)}
+            ${_editField('Telegram','ec_telegram',c.telegram)}
+            ${_editField('LinkedIn URL','ec_linkedin',c.linkedin,'1/-1')}
+            ${_editField('Twitter / X','ec_twitter',c.twitter)}
+            ${_editField('Website','ec_website1',c.website1)}
+            ${_editField('Sector Tags (comma-separated)','ec_sector_tags',c.sector_tags,'1/-1')}
+            <div style="grid-column:1/-1;">
+              <label style="font-size:0.73rem;color:#64748b;display:block;margin-bottom:4px;">About / Bio</label>
+              <textarea id="ec_about" style="width:100%;min-height:75px;padding:8px 11px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f1f5f9;font-size:0.84rem;outline:none;resize:vertical;box-sizing:border-box;">${escHtml(c.about||'')}</textarea>
+            </div>
+            <div style="grid-column:1/-1;">
+              <label style="font-size:0.73rem;color:#64748b;display:block;margin-bottom:4px;">Append a Note (adds to history — existing notes unchanged)</label>
+              <textarea id="ec_new_note" placeholder="Write a new note, meeting summary, or message to append..." style="width:100%;min-height:60px;padding:8px 11px;border-radius:6px;border:1px solid #3b82f655;background:#0f172a;color:#f1f5f9;font-size:0.84rem;outline:none;resize:vertical;box-sizing:border-box;"></textarea>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+            <button onclick="document.getElementById('edit-contact-overlay').remove()" style="padding:9px 18px;border-radius:6px;border:1px solid #334155;background:none;color:#94a3b8;font-size:0.85rem;cursor:pointer;">Cancel</button>
+            <button onclick="saveEditContact(${id})" style="padding:9px 22px;border-radius:6px;border:none;background:#3b82f6;color:#fff;font-size:0.85rem;font-weight:700;cursor:pointer;">Save Changes</button>
+          </div>
+        </div>`;
+        document.body.appendChild(ov);
+        ov.addEventListener('click', e => { if(e.target===ov) ov.remove(); });
+    }
+
+    function saveEditContact(id) {
+        const c = contacts.find(x => x.id === id);
+        if (!c) return;
+        const fn = document.getElementById('ec_fn').value.trim();
+        const ln = document.getElementById('ec_ln').value.trim();
+        const newNote = document.getElementById('ec_new_note').value.trim();
+        const fields = {
+            person:       (fn + ' ' + ln).trim() || c.person,
+            entity:       document.getElementById('ec_entity').value.trim(),
+            position:     document.getElementById('ec_position').value.trim(),
+            email:        document.getElementById('ec_email').value.trim(),
+            phone:        document.getElementById('ec_phone').value.trim(),
+            whatsapp:     document.getElementById('ec_whatsapp').value.trim(),
+            telegram:     document.getElementById('ec_telegram').value.trim(),
+            linkedin:     document.getElementById('ec_linkedin').value.trim(),
+            twitter:      document.getElementById('ec_twitter').value.trim(),
+            website1:     document.getElementById('ec_website1').value.trim(),
+            sector_tags:  document.getElementById('ec_sector_tags').value.trim(),
+            about:        document.getElementById('ec_about').value.trim(),
+        };
+        if (newNote) fields.notes = [...(c.notes || []), newNote];
+        saveContactEdit(id, fields);
+        document.getElementById('edit-contact-overlay').remove();
+        view(id);
+        showToast('✓ Contact updated');
     }
 
     // ── State
@@ -484,7 +633,8 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
                     &nbsp;
                     <span style="background:#1e3a2f;color:#86efac;padding:3px 10px;
                                  border-radius:10px;font-size:0.72rem;">${c.priority}</span>
-                    <div style="margin-top:10px;">
+                    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+                        <button onclick="openEditModal(${c.id})" style="padding:6px 14px;border-radius:6px;border:1px solid #3b82f6;background:#1e293b;color:#3b82f6;font-size:0.8rem;cursor:pointer;font-weight:600;">✏️ Edit Contact</button>
                         <button onclick="showAddToProjectMenu(${c.id}, this)" style="padding:6px 14px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#94a3b8;font-size:0.8rem;cursor:pointer;">📁 Add to Project</button>
                     </div>
                 </div>
