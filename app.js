@@ -685,7 +685,7 @@ Rules:
                 method: 'POST',
                 headers: buildHeaders(),
                 body: JSON.stringify({
-                    model: 'claude-sonnet-4-20250514',
+                    model: 'claude-opus-4-6',
                     max_tokens: 1000,
                     messages: [{
                         role: 'user',
@@ -698,7 +698,11 @@ Rules:
                 })
             });
             const data = await resp.json();
+            if (!resp.ok) {
+                throw new Error('API error ' + resp.status + ': ' + (data.error?.message || JSON.stringify(data)));
+            }
             const raw = data.content?.find(b => b.type==='text')?.text || '';
+            if (!raw) throw new Error('Empty response from API');
             const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
             populateForm(parsed);
             return true;
@@ -782,13 +786,17 @@ Set confidence low (10-25) since you only have the URL. Infer name from the slug
                 method: 'POST',
                 headers: buildHeaders(),
                 body: JSON.stringify({
-                    model: 'claude-sonnet-4-20250514',
+                    model: 'claude-haiku-4-5-20251001',
                     max_tokens: 500,
                     messages: [{ role: 'user', content: prompt }]
                 })
             });
             const data = await resp.json();
+            if (!resp.ok) {
+                throw new Error('API error ' + resp.status + ': ' + (data.error?.message || JSON.stringify(data)));
+            }
             const raw = data.content?.find(b => b.type==='text')?.text || '';
+            if (!raw) throw new Error('Empty response from API');
             const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
             populateForm(parsed);
             setStatus('ok','✓ Basic info extracted from URL. Drop a screenshot for full profile data.');
