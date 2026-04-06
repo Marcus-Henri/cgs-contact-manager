@@ -73,9 +73,10 @@ website1, website2, website3, birthday, connected_on, sector_tags, custom_tags,
 seniority, relevance_score, priority, status, about, notes[]
 
 ### localStorage Keys
-- `cgs_anthropic_key` — user's Anthropic API key (entered once in the API key bar)
-- `cgs_projects`      — JSON array of project objects (see Projects section)
-- `cgs_auth`          — session flag set to "1" after PIN entry (sessionStorage)
+- `cgs_anthropic_key`  — user's Anthropic API key (entered once in the API key bar)
+- `cgs_projects`       — JSON array of project objects (see Projects section)
+- `cgs_new_contacts`   — JSON array of contacts added via modal (delta persistence)
+- `cgs_auth`           — session flag set to "1" after PIN entry (sessionStorage)
 
 ---
 
@@ -93,23 +94,13 @@ seniority, relevance_score, priority, status, about, notes[]
 - **AI extraction (URL path)** — paste LinkedIn URL, Claude infers name from slug
 - **AI extraction (screenshot path)** — drop/upload PNG or JPEG, Claude vision reads all visible fields
 - **Projects** — create projects, add/remove contacts, persist via localStorage
+- **New contact persistence** — contacts added via modal saved to `cgs_new_contacts`
+  in localStorage, merged into contacts array on every page load (device-specific)
 - **Export JSON** — downloads full dataset + projects as JSON
 - **API key bar** — hidden bar (toggle in header), saves key to localStorage
 
 ### Known Gaps / Next Steps
-1. **New contact persistence** — contacts added via Add Contact modal exist in-memory
-   only for the session. After reload they are gone. Need localStorage delta OR
-   Cloudflare KV backend. Options discussed:
-   - **Option A (easy):** localStorage delta — store new/edited contacts in
-     `localStorage["cgs_new_contacts"]`, merge with INITIAL_DATA on load.
-     Device-specific, no setup.
-   - **Option B (recommended):** Cloudflare KV + Worker — tiny Worker handles
-     GET/POST, data stored server-side, cross-device. Free tier handles the volume.
-   - **Option C:** Cloudflare D1 (SQLite) — same as B but queryable SQL.
-   - **Option D (avoid):** GitHub API auto-commit — slow (30-90s deploy per save).
-   User was leaning toward Option B but hadn't decided yet.
-
-2. **AI Extract end-to-end test** — fixed 3 bugs (wrong CORS header, undefined
+1. **AI Extract end-to-end test** — fixed 3 bugs (wrong CORS header, undefined
    ANTHROPIC_API_KEY, hardcoded image/jpeg MIME type) but hasn't been confirmed
    live with a real API key.
 
@@ -130,6 +121,13 @@ seniority, relevance_score, priority, status, about, notes[]
    ACTUAL CAUSE: referenced undefined global `ANTHROPIC_API_KEY` instead of `getApiKey()`
 5. Screenshot vision would fail for PNG files
    ACTUAL CAUSE: `media_type` hardcoded to `image/jpeg` — fixed to detect from `file.type`
+6. `clearAddForm` infinite recursion — stack overflow when opening Add Contact modal
+   ACTUAL CAUSE: two `function clearAddForm()` declarations in classic script; both hoisted,
+   second wins globally, so `_origClear` captured the override itself. Calling it caused
+   infinite recursion. Fixed by merging override's resets into original, deleting override.
+7. `ncSave()` ReferenceError — new contact couldn't be saved from Manual tab
+   ACTUAL CAUSE: referenced undefined `DB` variable and `save()` function (legacy code).
+   Fixed to use `contacts` array and `persistNewContact()`.
 
 ---
 
@@ -139,7 +137,9 @@ seniority, relevance_score, priority, status, about, notes[]
 |---|---|
 | INITIAL_DATA guard | 3–10 |
 | Contact mapping | 12–42 |
-| Projects data layer | ~43–120 |
+| localStorage delta helpers (loadNewContacts, persistNewContact, deletePersistedContact) | ~44–65 |
+| Delta merge on load | ~65 |
+| Projects data layer | ~67–120 |
 | Projects UI (panel, detail, picker) | ~121–340 |
 | Add Contact modal state | ~360–395 |
 | Image drop/upload handler | ~400–420 |
@@ -187,6 +187,8 @@ seniority, relevance_score, priority, status, about, notes[]
 
 ## Git History
 ```
+bece6f0  Fix clearAddForm infinite recursion — delete stale override, merge resets into original
+         (also includes: localStorage delta persistence for new contacts, ncSave fix)
 3e3e4b9  Add Projects feature: create, manage, add contacts, persist via localStorage
 6fd6535  Fix AI extraction: header name, undefined API key, media type
 cbf5332  Fix syntax error: escape apostrophe in Claude's string literal
