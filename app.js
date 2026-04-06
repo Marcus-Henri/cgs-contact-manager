@@ -600,6 +600,9 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
                                     border-radius:12px;font-size:0.72rem;">${t}</span>`)
             .join(' ');
 
+        const ie = (field, val, style) =>
+            `<span class="ie" data-cid="${c.id}" data-field="${field}" onclick="startInlineEdit(this)" title="Click to edit" style="${style||''}">${escHtml(val||'—')}</span>`;
+
         document.getElementById('detail').innerHTML = `
             <style>
                 .detail-section { margin-bottom:24px; }
@@ -611,16 +614,21 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
                 .cp-label       { color:#64748b;font-size:0.7rem;display:block;margin-bottom:2px; }
                 .cp-pill a      { color:#3b82f6; }
                 .cp-pill a:hover{ text-decoration:underline; }
+                .ie             { cursor:text;border-bottom:1px dashed #334155;padding-bottom:1px;
+                                  transition:border-color .15s; }
+                .ie:hover       { border-bottom-color:#3b82f6; }
+                .ie-hint        { font-size:0.65rem;color:#475569;margin-left:6px;font-weight:400; }
             </style>
 
             <!-- Header -->
             <div style="display:flex;justify-content:space-between;align-items:flex-start;
                         flex-wrap:wrap;gap:16px;margin-bottom:20px;">
                 <div style="flex:1;min-width:200px;">
-                    <h1 style="margin:0 0 4px;font-size:1.5rem;">${c.person}</h1>
-                    <p  style="color:var(--accent);font-size:1rem;margin:0 0 2px;">${c.position}</p>
-                    <p  style="color:#94a3b8;font-size:0.9rem;margin:0;">${c.entity}</p>
+                    <h1 style="margin:0 0 4px;font-size:1.5rem;">${ie('person', c.person)}</h1>
+                    <p style="color:var(--accent);font-size:1rem;margin:0 0 2px;">${ie('position', c.position)}</p>
+                    <p style="color:#94a3b8;font-size:0.9rem;margin:0;">${ie('entity', c.entity)}</p>
                     ${tagsHtml ? `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">${tagsHtml}</div>` : ''}
+                    <div style="margin-top:6px;font-size:0.7rem;color:#475569;">✎ Click any field above to edit inline</div>
                 </div>
                 <div style="text-align:right;flex-shrink:0;">
                     <div style="font-size:2rem;font-weight:700;color:${scoreColor};">
@@ -633,8 +641,8 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
                     &nbsp;
                     <span style="background:#1e3a2f;color:#86efac;padding:3px 10px;
                                  border-radius:10px;font-size:0.72rem;">${c.priority}</span>
-                    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-                        <button onclick="openEditModal(${c.id})" style="padding:6px 14px;border-radius:6px;border:1px solid #3b82f6;background:#1e293b;color:#3b82f6;font-size:0.8rem;cursor:pointer;font-weight:600;">✏️ Edit Contact</button>
+                    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+                        <button onclick="openEditModal(${c.id})" style="padding:6px 14px;border-radius:6px;border:1px solid #3b82f6;background:#1e293b;color:#3b82f6;font-size:0.8rem;cursor:pointer;font-weight:600;">✏️ Edit All Fields</button>
                         <button onclick="showAddToProjectMenu(${c.id}, this)" style="padding:6px 14px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#94a3b8;font-size:0.8rem;cursor:pointer;">📁 Add to Project</button>
                     </div>
                 </div>
@@ -645,20 +653,69 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
                 <div class="section-label">Profile</div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">
                     ${c.connected_on ? `<div><div class="section-label">Connected</div><div style="color:#e2e8f0;font-size:0.88rem;">${c.connected_on}</div></div>` : ''}
-                    ${c.seniority    ? `<div><div class="section-label">Seniority</div><div style="color:#e2e8f0;font-size:0.88rem;">${c.seniority}</div></div>` : ''}
-                    ${c.birthday     ? `<div><div class="section-label">Birthday</div><div style="color:#e2e8f0;font-size:0.88rem;">${c.birthday}</div></div>` : ''}
+                    ${`<div><div class="section-label">Seniority</div><div style="color:#e2e8f0;font-size:0.88rem;">${ie('seniority', c.seniority||'')}</div></div>`}
+                    ${c.birthday ? `<div><div class="section-label">Birthday</div><div style="color:#e2e8f0;font-size:0.88rem;">${c.birthday}</div></div>` : ''}
                 </div>
             </section>
 
             ${cpBlock}
             ${aboutBlock}
 
-            <!-- Message history -->
+            <!-- Message History / Notes -->
             <section class="detail-section">
-                <div class="section-label">Message History</div>
+                <div class="section-label">Message History / Notes</div>
+                <!-- Quick-add note box -->
+                <div style="display:flex;gap:8px;margin-bottom:14px;">
+                    <textarea id="qnote-${c.id}" placeholder="Type a note, meeting summary, or update and click Add…"
+                        style="flex:1;min-height:60px;padding:9px 12px;border-radius:6px;border:1px solid #334155;
+                               background:#0f172a;color:#f1f5f9;font-size:0.84rem;outline:none;resize:vertical;
+                               font-family:'Segoe UI',sans-serif;"></textarea>
+                    <button onclick="quickAddNote(${c.id})"
+                        style="align-self:flex-end;padding:9px 16px;border-radius:6px;border:none;
+                               background:#3b82f6;color:#fff;font-size:0.82rem;font-weight:700;
+                               cursor:pointer;white-space:nowrap;">+ Add Note</button>
+                </div>
                 ${notesBlock}
             </section>
         `;
+    }
+
+    function startInlineEdit(span) {
+        if (span.querySelector('input')) return;
+        const cid   = parseInt(span.dataset.cid);
+        const field = span.dataset.field;
+        const currentVal = span.textContent.trim() === '—' ? '' : span.textContent.trim();
+        const inp = document.createElement('input');
+        inp.value = currentVal;
+        inp.style.cssText = 'background:#0f172a;border:1px solid #3b82f6;border-radius:4px;color:#f1f5f9;padding:3px 8px;font-size:inherit;font-family:inherit;width:100%;outline:none;box-sizing:border-box;min-width:120px;';
+        span.innerHTML = '';
+        span.appendChild(inp);
+        inp.focus(); inp.select();
+        let saved = false;
+        function save() {
+            if (saved) return; saved = true;
+            const newVal = inp.value.trim();
+            if (newVal !== currentVal) { saveContactEdit(cid, {[field]: newVal}); showToast('✓ Saved'); }
+            view(cid);
+        }
+        inp.addEventListener('blur', save);
+        inp.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); save(); }
+            if (e.key === 'Escape') { saved = true; view(cid); }
+        });
+    }
+
+    function quickAddNote(contactId) {
+        const ta   = document.getElementById('qnote-' + contactId);
+        if (!ta) return;
+        const text = ta.value.trim();
+        if (!text) { ta.focus(); return; }
+        const c = contacts.find(x => x.id === contactId);
+        if (!c) return;
+        const timestamp = new Date().toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+        saveContactEdit(contactId, { notes: [...(c.notes||[]), `[${timestamp}] ${text}`] });
+        view(contactId);
+        showToast('✓ Note added');
     }
 
 
