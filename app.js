@@ -42,6 +42,28 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
     }));
 
     // ══════════════════════════════════════════════════════
+    //  NEW CONTACT PERSISTENCE — localStorage delta
+    //  Stored in localStorage["cgs_new_contacts"] as the
+    //  internal mapped schema (same shape as contacts[]).
+    //  Survives reload on this device. Export JSON to share.
+    // ══════════════════════════════════════════════════════
+    function loadNewContacts() {
+        try { return JSON.parse(localStorage.getItem('cgs_new_contacts') || '[]'); } catch(e) { return []; }
+    }
+    function persistNewContact(c) {
+        const arr = loadNewContacts().filter(x => x.id !== c.id); // no duplicates
+        arr.unshift(c);
+        localStorage.setItem('cgs_new_contacts', JSON.stringify(arr));
+    }
+    function deletePersistedContact(id) {
+        const arr = loadNewContacts().filter(c => c.id !== id);
+        localStorage.setItem('cgs_new_contacts', JSON.stringify(arr));
+    }
+
+    // Merge any previously saved new contacts into the live array (prepend = top of list)
+    loadNewContacts().forEach(c => contacts.unshift(c));
+
+    // ══════════════════════════════════════════════════════
     //  PROJECTS — localStorage-backed
     // ══════════════════════════════════════════════════════
     function loadProjects() {
@@ -514,6 +536,18 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
         setStatus('','');
         clearImage();
         document.getElementById('confidenceWrap').style.display='none';
+        // Reset JSON tab fields
+        const jp = document.getElementById('jsonPasteArea');
+        if (jp) jp.value = '';
+        const js = document.getElementById('jsonStatus');
+        if (js) js.textContent = '';
+        const sf = document.getElementById('sharedForm');
+        if (sf) sf.style.display = 'none';
+        const sb = document.getElementById('saveBtn');
+        if (sb) sb.style.display = 'none';
+        const fm = document.getElementById('formReadyMsg');
+        if (fm) fm.textContent = '';
+        switchTab('json');
     }
 
     function clearImage() {
@@ -864,6 +898,7 @@ Set confidence low (10-25) since you only have the URL. Infer name from the slug
 
         // Prepend to contacts array so it appears first in list
         contacts.unshift(newContact);
+        persistNewContact(newContact);
         currentData = contacts;
         renderList();
         document.getElementById('stats').textContent = contacts.length.toLocaleString() + ' contacts';
@@ -1016,25 +1051,6 @@ Set confidence low (10-25) since you only have the URL. Infer name from the slug
         document.getElementById('sharedForm').scrollIntoView({behavior:'smooth', block:'start'});
     }
 
-    // ══════════════════════════════════════════════════════
-    //  OVERRIDE clearAddForm to reset new elements too
-    // ══════════════════════════════════════════════════════
-    const _origClear = clearAddForm;
-    function clearAddForm() {
-        _origClear();
-        const jp = document.getElementById('jsonPasteArea');
-        if (jp) jp.value = '';
-        const js = document.getElementById('jsonStatus');
-        if (js) js.textContent = '';
-        const sf = document.getElementById('sharedForm');
-        if (sf) sf.style.display = 'none';
-        const sb = document.getElementById('saveBtn');
-        if (sb) sb.style.display = 'none';
-        const fm = document.getElementById('formReadyMsg');
-        if (fm) fm.textContent = '';
-        switchTab('json');
-    }
-
     // ── Init
     // Load saved API key from localStorage
     (function() {
@@ -1095,16 +1111,31 @@ async function ncExtract(){
 function ncSave(){
   var fn=(document.getElementById("nc-fn").value||"").trim(),ln=(document.getElementById("nc-ln").value||"").trim();
   if(!fn||!ln){var e=document.getElementById("nc-err");e.style.display="block";e.textContent="First and last name required.";return;}
-  var mid=DB.reduce(function(a,c){return c.id>a?c.id:a;},0)+1;
+  var mid=contacts.reduce(function(a,c){return c.id>a?c.id:a;},0)+1;
   var tags=(document.getElementById("nc-tg").value||"").split(",").map(function(t){return t.trim();}).filter(Boolean);
   var note=(document.getElementById("nc-no").value||"").trim();
-  var ts=new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
-  var nc={id:mid,first_name:fn,last_name:ln,full_name:fn+" "+ln,company:(document.getElementById("nc-co").value||"").trim(),position:(document.getElementById("nc-ti").value||"").trim(),email:(document.getElementById("nc-em").value||"").trim(),phone:(document.getElementById("nc-ph").value||"").trim(),whatsapp:(document.getElementById("nc-wa").value||"").trim(),twitter:(document.getElementById("nc-tw").value||"").trim(),linkedin_url:(document.getElementById("nc-li").value||"").trim(),sector_tags:tags,custom_tags:[],priority:document.getElementById("nc-pr").value||"medium",relevance_score:5,seniority:"",has_email:!!(document.getElementById("nc-em").value||"").trim(),status:"Not contacted",notes:note?[{date:ts,text:note}]:[],projects:[],attachments:[],email2:"",email3:"",telegram:"",signal:"",wechat:"",website1:"",website2:"",website3:"",birthday:"",connected_on:ts};
-  DB.push(nc);save();
+  var ts=new Date().toISOString().split('T')[0];
+  // Build in internal mapped schema (same shape as contacts[])
+  var nc={
+    id:mid, person:fn+" "+ln, entity:(document.getElementById("nc-co").value||"").trim(),
+    position:(document.getElementById("nc-ti").value||"").trim(),
+    linkedin:(document.getElementById("nc-li").value||"").trim(),
+    email:(document.getElementById("nc-em").value||"").trim(),
+    email2:"",email3:"",phone:(document.getElementById("nc-ph").value||"").trim(),
+    whatsapp:(document.getElementById("nc-wa").value||"").trim(),
+    telegram:"",signal:"",wechat:"",twitter:(document.getElementById("nc-tw").value||"").trim(),
+    website1:"",website2:"",website3:"",birthday:"",connected_on:ts,
+    sector_tags:tags.join(", "),custom_tags:"",seniority:"",relevance_score:5,
+    priority:(document.getElementById("nc-pr").value||"Medium"),
+    status:"Not contacted",about:"",notes:note?[note]:[]
+  };
+  contacts.unshift(nc);
+  persistNewContact(nc);
+  currentData=contacts;
   if(typeof renderList==="function")renderList();
-  if(typeof renderContactDetail==="function")renderContactDetail(mid);
-  if(typeof showToast==="function")showToast("Contact "+nc.full_name+" added.");
+  document.getElementById('stats').textContent=contacts.length.toLocaleString()+' contacts';
+  if(typeof showToast==="function")showToast("Contact "+nc.person+" added.");
   document.getElementById("add-contact-modal").remove();
-  setTimeout(function(){var el=document.querySelector("[data-id=\""+mid+"\"]");if(el){el.click();el.scrollIntoView({behavior:"smooth",block:"center"});}},200);
+  setTimeout(function(){view(mid);},200);
 }
 

@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(ls:*)",
+      "Bash(wrangler:*)",
+      "Bash(git init:*)",
+      "Bash(git remote:*)",
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(python3:*)",
+      "Bash(py:*)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" js \"document.getElementById\\('tab-ai'\\).click\\(\\)\" 2>&1\nsleep 1\n\"$B\" screenshot /tmp/cgs-modal-ai.png 2>&1)",
+      "Bash(git:*)",
+      "Bash(node:*)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" navigate \"https://cgs-contact-manager.pages.dev\" 2>&1 | head -20)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" goto \"https://cgs-contact-manager.pages.dev\" 2>&1)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" js \"sessionStorage.setItem\\('cgs_auth','1'\\); document.getElementById\\('cgs-pin-gate'\\).style.display='none'; 'done'\" 2>&1)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" screenshot 2>&1 | head -5)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" js \"openProjectsPanel\\(\\); 'done'\" 2>&1)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" screenshot 2>&1 | head -3)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" js \"\ndocument.getElementById\\('np-name'\\).value = 'Test Project Alpha';\ndocument.getElementById\\('np-desc'\\).value = 'A test project for verification';\nsubmitNewProject\\(\\);\n'done'\n\" 2>&1)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" js \"openProjectDetail\\(1\\); 'done'\" 2>&1)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" js \"\ndocument.getElementById\\('proj-search'\\).value = 'Reeve';\nrenderProjectContactPicker\\(1\\);\n'done'\n\" 2>&1)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" js \"\n// Get the first contact's id \\(Reeve Collins\\) and add them\nconst firstResult = document.querySelector\\('#proj-picker div'\\);\nif \\(firstResult\\) { firstResult.click\\(\\); }\n'done'\n\" 2>&1)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" js \"\ndocument.getElementById\\('proj-search'\\).value = 'Ernest';\nrenderProjectContactPicker\\(1\\);\nsetTimeout\\(\\(\\) => {\n  const firstResult = document.querySelector\\('#proj-picker div'\\);\n  if \\(firstResult\\) firstResult.click\\(\\);\n}, 200\\);\n'done'\n\" 2>&1)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" reload 2>&1)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" js \"closeProjectsPanel\\(\\); view\\(contacts[2].id\\); 'done'\" 2>&1)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" js \"\n// Find and click the Add to Project button\nconst btn = document.querySelector\\('button[onclick*=\\\\\"showAddToProjectMenu\\\\\"]'\\);\nif \\(btn\\) { btn.click\\(\\); 'clicked'; } else { 'not found'; }\n\" 2>&1)",
+      "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" \"$B\" goto https://cgs-contact-manager.pages.dev)",
+      "Read(//c/CGS/**)",
+      "Bash(1 sleep:*)"
+    ]
+  }
+}
