@@ -30,7 +30,14 @@
       "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\"\n\"$B\" js \"\n// Find and click the Add to Project button\nconst btn = document.querySelector\\('button[onclick*=\\\\\"showAddToProjectMenu\\\\\"]'\\);\nif \\(btn\\) { btn.click\\(\\); 'clicked'; } else { 'not found'; }\n\" 2>&1)",
       "Bash(B=\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" \"$B\" goto https://cgs-contact-manager.pages.dev)",
       "Read(//c/CGS/**)",
-      "Bash(1 sleep:*)"
+      "Bash(1 sleep:*)",
+      "Bash(B=~/.claude/skills/gstack/browse/dist/browse\n$B goto https://cgs-contact-manager.pages.dev\nsleep 2\n$B js \"typeof clearAddForm\")",
+      "Bash(\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" goto https://cgs-contact-manager.pages.dev 2>&1; sleep 2; \"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" js \"typeof clearAddForm\" 2>&1)",
+      "Bash(\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" js \"sessionStorage.setItem\\('cgs_pin_ok','1'\\)\" 2>&1\n\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" reload 2>&1\nsleep 1\n\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" js \"clearAddForm\\(\\); 'ok'\" 2>&1)",
+      "Bash(\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" js \"\n  // Add a test contact via persistNewContact\n  const c = {id:99999,person:'Test User',entity:'Test Co',position:'CEO',email:'test@test.com',linkedin_url:'',about:'',phone:'',whatsapp:'',telegram:'',twitter:'',website1:'',sector_tags:'',seniority:'',priority:'',status:'',relevance_score:'',notes:'',connected_on:''};\n  persistNewContact\\(c\\);\n  const saved = JSON.parse\\(localStorage.getItem\\('cgs_new_contacts'\\)||'[]'\\);\n  saved.length + ' saved, first: ' + saved[0].person\n\" 2>&1)",
+      "Bash(\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" reload 2>&1\nsleep 2\n\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" js \"\n  const found = contacts.find\\(c => c.id === 99999\\);\n  found ? 'FOUND: ' + found.person : 'NOT FOUND';\n\" 2>&1)",
+      "Bash(\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" js \"\n  deletePersistedContact\\(99999\\);\n  const saved = JSON.parse\\(localStorage.getItem\\('cgs_new_contacts'\\)||'[]'\\);\n  'Remaining: ' + saved.length\n\" 2>&1)",
+      "Bash(\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" goto https://cgs-contact-manager.pages.dev 2>&1\n\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" js \"sessionStorage.setItem\\('cgs_pin_ok','1'\\)\" 2>&1\n\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" reload 2>&1\nsleep 1\n\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" js \"openAddModal\\(\\); switchTab\\('ai'\\);\" 2>&1\nsleep 1\n\"/c/Users/Mark Henry Saft/.claude/skills/gstack/browse/dist/browse\" screenshot /tmp/api-key-modal.png 2>&1)"
     ]
   }
 }

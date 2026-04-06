@@ -517,7 +517,17 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
     // ══════════════════════════════════════════════════════
     let _imgBase64 = null;   // current screenshot as base64
 
-    function openAddModal()  { document.getElementById('addModal').classList.add('open'); }
+    function openAddModal()  {
+        document.getElementById('addModal').classList.add('open');
+        // Pre-fill the in-modal API key input with any saved key
+        const saved = getApiKey();
+        const inp = document.getElementById('modalApiKeyInput');
+        if (inp) {
+            inp.value = saved || '';
+            const st = document.getElementById('modalKeyStatus');
+            if (st) st.textContent = saved ? '✓ Key saved' : '';
+        }
+    }
     function closeAddModal() {
         document.getElementById('addModal').classList.remove('open');
         clearAddForm();
