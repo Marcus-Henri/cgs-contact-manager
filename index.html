@@ -227,32 +227,51 @@
 
     <!-- TAB: AI EXTRACT -->
     <div id="panel-ai" style="display:none;">
-        <!-- API Key entry — always visible here -->
-        <div style="background:#0f172a;border:2px solid #3b82f6;border-radius:10px;padding:16px;margin-bottom:18px;">
-            <div style="color:#3b82f6;font-size:0.85rem;font-weight:700;margin-bottom:10px;">🔑 Step 1 — Enter your Anthropic API Key</div>
+        <!-- Step 1: Choose AI provider -->
+        <div style="color:#94a3b8;font-size:0.8rem;font-weight:600;margin-bottom:10px;">🔑 Step 1 — Enter ONE of the following API keys</div>
+
+        <!-- Google Gemini key (FREE) -->
+        <div style="background:#0f172a;border:2px solid #22c55e;border-radius:10px;padding:14px;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <span style="color:#22c55e;font-size:0.85rem;font-weight:700;">Google Gemini</span>
+                <span style="background:#22c55e;color:#0f172a;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:20px;">FREE TIER</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <input type="password" id="modalGeminiKeyInput"
+                    placeholder="Paste Gemini key here:  AIza..."
+                    oninput="saveGeminiKey(this.value); document.getElementById('modalGeminiKeyStatus').textContent = this.value ? '✓ Key saved' : '';"
+                    style="flex:1;padding:10px 14px;border-radius:6px;border:1px solid #22c55e;
+                           background:#1e293b;color:#f1f5f9;font-size:0.85rem;outline:none;font-family:monospace;">
+                <button onclick="(function(){var i=document.getElementById('modalGeminiKeyInput');i.type=i.type==='password'?'text':'password';})()"
+                    style="padding:10px 14px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#94a3b8;cursor:pointer;font-size:0.8rem;white-space:nowrap;">Show</button>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+                <span id="modalGeminiKeyStatus" style="color:#22c55e;font-size:0.75rem;font-weight:600;"></span>
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#64748b;font-size:0.75rem;">Get a free key at aistudio.google.com →</a>
+            </div>
+        </div>
+
+        <!-- Anthropic key -->
+        <div style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px;margin-bottom:16px;">
+            <div style="color:#64748b;font-size:0.82rem;font-weight:700;margin-bottom:8px;">Anthropic Claude (requires billing)</div>
             <div style="display:flex;gap:8px;align-items:center;">
                 <input type="password" id="modalApiKeyInput"
-                    placeholder="Paste your API key here:  sk-ant-api03-..."
+                    placeholder="sk-ant-api03-..."
                     oninput="saveApiKey(this.value); document.getElementById('modalKeyStatus').textContent = this.value ? '✓ Key saved' : '';"
-                    style="flex:1;padding:10px 14px;border-radius:6px;border:1px solid #3b82f6;
-                           background:#1e293b;color:#f1f5f9;font-size:0.85rem;outline:none;
-                           font-family:monospace;">
+                    style="flex:1;padding:10px 14px;border-radius:6px;border:1px solid #334155;
+                           background:#1e293b;color:#f1f5f9;font-size:0.85rem;outline:none;font-family:monospace;">
                 <button onclick="(function(){var i=document.getElementById('modalApiKeyInput');i.type=i.type==='password'?'text':'password';})()"
-                    style="padding:10px 14px;border-radius:6px;border:1px solid #334155;
-                           background:#1e293b;color:#94a3b8;cursor:pointer;font-size:0.8rem;white-space:nowrap;">
-                    Show
-                </button>
+                    style="padding:10px 14px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#94a3b8;cursor:pointer;font-size:0.8rem;white-space:nowrap;">Show</button>
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
                 <span id="modalKeyStatus" style="color:#22c55e;font-size:0.75rem;font-weight:600;"></span>
-                <a href="https://console.anthropic.com/settings/keys" target="_blank"
-                   style="color:#64748b;font-size:0.75rem;">Don't have a key? Get one →</a>
+                <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:#64748b;font-size:0.75rem;">Get a key →</a>
             </div>
         </div>
 
         <div style="background:#1e293b;border:1px solid #f59e0b44;border-radius:8px;padding:14px;margin-bottom:16px;">
             <div style="color:#f59e0b;font-size:0.8rem;font-weight:600;margin-bottom:4px;">⚠ Step 2 — Drop screenshot or paste URL below</div>
-            <div style="color:#94a3b8;font-size:0.82rem;">Requires Anthropic API credit loaded at console.anthropic.com/billing</div>
+            <div style="color:#94a3b8;font-size:0.82rem;">Gemini free tier: 15 requests/min — more than enough for adding contacts</div>
         </div>
 
         <!-- Screenshot drop zone -->

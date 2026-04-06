@@ -519,13 +519,21 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
 
     function openAddModal()  {
         document.getElementById('addModal').classList.add('open');
-        // Pre-fill the in-modal API key input with any saved key
-        const saved = getApiKey();
-        const inp = document.getElementById('modalApiKeyInput');
-        if (inp) {
-            inp.value = saved || '';
-            const st = document.getElementById('modalKeyStatus');
-            if (st) st.textContent = saved ? '✓ Key saved' : '';
+        // Pre-fill Gemini key
+        const geminiKey = getGeminiKey();
+        const gi = document.getElementById('modalGeminiKeyInput');
+        if (gi) {
+            gi.value = geminiKey || '';
+            const gs = document.getElementById('modalGeminiKeyStatus');
+            if (gs) gs.textContent = geminiKey ? '✓ Key saved' : '';
+        }
+        // Pre-fill Anthropic key
+        const anthropicKey = getApiKey();
+        const ai = document.getElementById('modalApiKeyInput');
+        if (ai) {
+            ai.value = anthropicKey || '';
+            const as = document.getElementById('modalKeyStatus');
+            if (as) as.textContent = anthropicKey ? '✓ Key saved' : '';
         }
     }
     function closeAddModal() {
@@ -636,14 +644,45 @@ if (!window.INITIAL_DATA || !Array.isArray(window.INITIAL_DATA)) {
             'anthropic-dangerous-direct-browser-access': 'true'
         };
     }
+
+    // ── Gemini key helpers
+    function getGeminiKey() { return localStorage.getItem('cgs_gemini_key') || ''; }
+    function saveGeminiKey(val) {
+        val = val.trim();
+        if (val) localStorage.setItem('cgs_gemini_key', val);
+        else localStorage.removeItem('cgs_gemini_key');
+    }
+
     function checkApiKey() {
-        const key = getApiKey();
-        if (!key) {
-            setStatus('err', '⚠ No API key set — enter your Anthropic key in the bar above first.');
-            document.getElementById('apiKeyInput').focus();
-            return false;
+        if (getGeminiKey() || getApiKey()) return true;
+        setStatus('err', '⚠ No API key set — enter a Google Gemini key (free) or Anthropic key above.');
+        return false;
+    }
+
+    // ── Gemini extraction (handles both text and vision)
+    async function extractWithGemini(prompt, imageBase64, imageMimeType) {
+        const key = getGeminiKey();
+        const model = 'gemini-2.0-flash';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+
+        const parts = [];
+        if (imageBase64) {
+            parts.push({ inline_data: { mime_type: imageMimeType, data: imageBase64 } });
         }
-        return true;
+        parts.push({ text: prompt });
+
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts }] })
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+            throw new Error('Gemini error ' + resp.status + ': ' + (data.error?.message || JSON.stringify(data)));
+        }
+        const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (!raw) throw new Error('Empty response from Gemini');
+        return JSON.parse(raw.replace(/```json|```/g,'').trim());
     }
 
     async function extractFromScreenshot() {
@@ -681,29 +720,34 @@ Rules:
 - about: the full "About" section text if visible`;
 
         try {
-            const resp = await fetch('https://api.anthropic.com/v1/messages', {
-                method: 'POST',
-                headers: buildHeaders(),
-                body: JSON.stringify({
-                    model: 'claude-opus-4-6',
-                    max_tokens: 1000,
-                    messages: [{
-                        role: 'user',
-                        content: [
-                            { type: 'image', source: { type: 'base64',
-                              media_type: _imgMediaType, data: _imgBase64 }},
-                            { type: 'text', text: prompt }
-                        ]
-                    }]
-                })
-            });
-            const data = await resp.json();
-            if (!resp.ok) {
-                throw new Error('API error ' + resp.status + ': ' + (data.error?.message || JSON.stringify(data)));
+            let parsed;
+            if (getGeminiKey()) {
+                setStatus('loading','🔍 Analysing screenshot with Google Gemini...');
+                parsed = await extractWithGemini(prompt, _imgBase64, _imgMediaType);
+            } else {
+                setStatus('loading','🔍 Analysing screenshot with Claude...');
+                const resp = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: buildHeaders(),
+                    body: JSON.stringify({
+                        model: 'claude-opus-4-6',
+                        max_tokens: 1000,
+                        messages: [{
+                            role: 'user',
+                            content: [
+                                { type: 'image', source: { type: 'base64',
+                                  media_type: _imgMediaType, data: _imgBase64 }},
+                                { type: 'text', text: prompt }
+                            ]
+                        }]
+                    })
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error('API error ' + resp.status + ': ' + (data.error?.message || JSON.stringify(data)));
+                const raw = data.content?.find(b => b.type==='text')?.text || '';
+                if (!raw) throw new Error('Empty response from API');
+                parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
             }
-            const raw = data.content?.find(b => b.type==='text')?.text || '';
-            if (!raw) throw new Error('Empty response from API');
-            const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
             populateForm(parsed);
             return true;
         } catch(err) {
@@ -759,7 +803,7 @@ Rules:
         }
 
         // ── Path 2: AI inference from URL metadata alone
-        setStatus('loading','🧠 LOCAL_BRIDGE offline — extracting from URL with AI...');
+        setStatus('loading','🧠 Extracting from URL with AI...');
         try {
             const username = url.split('/in/')[1]?.replace(/\//g,'') || '';
             const prompt = `A user wants to add a LinkedIn contact. The profile URL is: ${url}
@@ -782,22 +826,26 @@ From the URL slug alone, infer what you can and return ONLY valid JSON using thi
 }
 Set confidence low (10-25) since you only have the URL. Infer name from the slug if possible (e.g. "john-smith-abc123" → first: John, last: Smith). Leave company/position/about empty.`;
 
-            const resp = await fetch('https://api.anthropic.com/v1/messages', {
-                method: 'POST',
-                headers: buildHeaders(),
-                body: JSON.stringify({
-                    model: 'claude-haiku-4-5-20251001',
-                    max_tokens: 500,
-                    messages: [{ role: 'user', content: prompt }]
-                })
-            });
-            const data = await resp.json();
-            if (!resp.ok) {
-                throw new Error('API error ' + resp.status + ': ' + (data.error?.message || JSON.stringify(data)));
+            let parsed;
+            if (getGeminiKey()) {
+                setStatus('loading','🧠 Extracting from URL with Google Gemini...');
+                parsed = await extractWithGemini(prompt, null, null);
+            } else {
+                const resp = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: buildHeaders(),
+                    body: JSON.stringify({
+                        model: 'claude-haiku-4-5-20251001',
+                        max_tokens: 500,
+                        messages: [{ role: 'user', content: prompt }]
+                    })
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error('API error ' + resp.status + ': ' + (data.error?.message || JSON.stringify(data)));
+                const raw = data.content?.find(b => b.type==='text')?.text || '';
+                if (!raw) throw new Error('Empty response from API');
+                parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
             }
-            const raw = data.content?.find(b => b.type==='text')?.text || '';
-            if (!raw) throw new Error('Empty response from API');
-            const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
             populateForm(parsed);
             setStatus('ok','✓ Basic info extracted from URL. Drop a screenshot for full profile data.');
         } catch(err) {
